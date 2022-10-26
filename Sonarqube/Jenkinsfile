@@ -1,0 +1,121 @@
+/* Slack Notification Set */
+def notifyProductionDeploy() {
+if (currentBuild.currentResult == 'SUCCESS') {
+    def message = "@here ${env.JOB_BASE_NAME} Build <${env.BUILD_URL}|${currentBuild.displayName}> " +
+        "${currentBuild.currentResult} deployed to the production"
+    slackSend(message: message, channel: '#apiidentityciba-jenkins', color: 'good', token: 'token')
+} else {
+    def message = "@here ${env.JOB_BASE_NAME} Build <${env.BUILD_URL}|${currentBuild.displayName}> " +
+        "${currentBuild.currentResult} deployed to the production"
+    slackSend(message: message, channel: '#apiidentityciba-jenkins', color: 'danger', token: 'token')
+}
+}
+/* Branch Name Check */
+def branch_nem = scm.branches[0].name
+if (branch_nem.contains("*/")) {
+    branch_nem = branch_nem.split("\\*/")[1]
+    }
+
+
+pipeline {
+    agent { node { label 'DefaultJenkinsMachine' } }
+    stages {
+		stage('Clone Repository') {
+			steps{
+				script{
+					checkout scm
+					load ".envvars"
+					echo "${_IMAGE_NAME_}"
+				}
+			}
+        }
+		
+
+        stage('Build image') {
+			steps{
+				script{
+					/*sh "docker.build('nexus.i01.paytr.com:8083/${_IMAGE_NAME_}:${_VERSION_}')"*/
+					sh "docker build -t nexus.i01.paytr.com:8083/${_IMAGE_NAME_}:${_VERSION_} ."
+				}
+			}
+        }
+		stage('Test') {
+			steps{
+				script{
+					sh 'echo "NoN-Test"'
+				}
+			}
+		}   
+		stage('Push image to Nexus') {
+			steps{
+				script{
+					sh "docker push nexus.i01.paytr.com:8083/${_IMAGE_NAME_}:${_VERSION_}"
+				}
+			}
+        }
+		stage('Publish image on kubernetes') {
+			agent { label "VTGENK8SMAS01" }
+			steps{
+				script{
+					sh "hostname"
+        			checkout scm
+        			sh "sed -i 's/_APP_NAME_/${_APP_NAME_}-${branch_nem}/g' kubernetes.yml"
+       				sh "sed -i 's/_APP_NAMESPACE_/${_APP_NAMESPACE_}/g' kubernetes.yml"
+        			sh "sed -i 's/_APP_REPLICA_/${_APP_REPLICA_}/g' kubernetes.yml"
+        			sh "sed -i 's/_DOCKER_REP_URL_/${_DOCKER_REP_URL_}/g' kubernetes.yml"
+					sh "sed -i 's/_IMAGE_NAME_/${_IMAGE_NAME_}/g' kubernetes.yml"
+					sh "sed -i 's/_VERSION_/${_VERSION_}/g' kubernetes.yml"
+					/* sh "sed -i 's/_APP_URL_/${_APP_URL_}/g' kubernetes.yml" */
+					sh "sed -i 's/_APP_URL_/${branch_nem}.i01.paytr.com/g' kubernetes.yml"
+					sh "sed -i 's/_APP_PATH_/${_APP_PATH_}/g' kubernetes.yml"
+					sh "/usr/bin/kubectl delete deployment ${_APP_NAME_}-${branch_nem}"
+					sh "/usr/bin/kubectl apply -f kubernetes.yml"
+					sh "/usr/bin/kubectl get pod --all-namespaces"
+				}
+			}
+		} 
+	
+	}
+
+    post {
+        always {
+            notifyProductionDeploy()
+        }
+
+	}
+}
+
+podTemplate(containers: [
+    containerTemplate(
+        name: 'dotnet', 
+        image: 'mcr.microsoft.com/dotnet/sdk:6.0', 
+        command: 'sleep', 
+        args: '30d'
+        )
+])    {
+
+
+    node(POD_LABEL) {
+        stage('Sonarqube Scan') {
+            container('dotnet') {
+                stage('Sonarqube Scan') {
+			script{
+				checkout scm
+			}
+                    catchError() {
+						sh '''
+                        dotnet tool install --global dotnet-sonarscanner --version 5.8.0
+						export PATH="$PATH:/root/.dotnet/tools"
+						apt-get update && apt install default-jre -y 
+						/root/.dotnet/tools/dotnet-sonarscanner begin /k:"api.identity.ciba" /d:sonar.host.url="http://sonarqube.i01.paytr.com:9000"  /d:sonar.login="sqp_03dxxxxa9e715c0f8938f424ba7bab26b913d2"
+						dotnet build
+						/root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.login="sqp_03df6187da9e715c0xxxxbab26b913d2"
+                        '''
+                    }
+                }
+            }
+        }
+
+    }
+        
+}
