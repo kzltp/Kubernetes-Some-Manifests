@@ -107,9 +107,9 @@ podTemplate(containers: [
                         dotnet tool install --global dotnet-sonarscanner --version 5.8.0
 						export PATH="$PATH:/root/.dotnet/tools"
 						apt-get update && apt install default-jre -y 
-						/root/.dotnet/tools/dotnet-sonarscanner begin /k:"api.identity.ciba" /d:sonar.host.url="http://sonarqube.i01.paytr.com:9000"  /d:sonar.login="sqp_03dxxxxa9e715c0f8938f424ba7bab26b913d2"
+						/root/.dotnet/tools/dotnet-sonarscanner begin /k:"api.identity.ciba" /d:sonar.host.url="http://sonarqube.i01.paytr.com:9000"  /d:sonar.login="sqp_xxxxxxxxxxxx24ba7bab26b913d2"
 						dotnet build
-						/root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.login="sqp_03df6187da9e715c0xxxxbab26b913d2"
+						/root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.login="sqp_xxxxxx0xxxxbab26b913d2"
                         '''
                     }
                 }
