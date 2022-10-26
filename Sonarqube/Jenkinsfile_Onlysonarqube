@@ -12,17 +12,17 @@ podTemplate(containers: [
         stage('Sonarqube Scan') {
             container('dotnet') {
                 stage('Sonarqube Scan') {
-					        script{
-						        checkout scm
-				        	}
+			script{
+				checkout scm
+			}
                     catchError() {
                         sh '''
                         dotnet tool install --global dotnet-sonarscanner --version 5.8.0
-						            export PATH="$PATH:/root/.dotnet/tools"
-						            apt-get update && apt install default-jre -y 
-						            /root/.dotnet/tools/dotnet-sonarscanner begin /k:"security.idp.confidential" /d:sonar.host.url="http://sonarqube.i01.paytr.com:9000"  /d:sonar.login="sqp_5c070f3cff120f8d3a0f8601c42be49f7508c3a2"
-						            dotnet build
-						            /root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.login="sqp_5c070f3cff120f8d3a0f8601c42be49f7508c3a2"
+			export PATH="$PATH:/root/.dotnet/tools"
+			apt-get update && apt install default-jre -y 
+			/root/.dotnet/tools/dotnet-sonarscanner begin /k:"security.idp.confidential" /d:sonar.host.url="http://sonarqube.i01.paytr.com:9000"  /d:sonar.login="sqp_5c070f3cff120f8d3a0f8601c42be49f7508c3a2"
+			dotnet build
+			/root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.login="sqp_5c070f3cff120f8d3a0f8601c42be49f7508c3a2"
                         '''
                     }
                 }
